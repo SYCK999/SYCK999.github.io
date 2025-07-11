@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Gemini","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="动机Transformer 结构很好，想用在 CV 中 模型结构和数据处理 a. 图像分块与嵌入 (Image Patching &amp; Embedding)">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ViT论文理解">
+<meta property="og:url" content="http://example.com/2025/07/11/%E5%A4%9A%E6%A8%A1%E6%80%81/ViT/index.html">
+<meta property="og:site_name" content="Eagle_Sun的拓荒地">
+<meta property="og:description" content="动机Transformer 结构很好，想用在 CV 中 模型结构和数据处理 a. 图像分块与嵌入 (Image Patching &amp; Embedding)">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/images/ViT.png">
+<meta property="article:published_time" content="2025-07-11T02:51:20.000Z">
+<meta property="article:modified_time" content="2025-07-11T06:39:29.684Z">
+<meta property="article:author" content="Eagle_Sun">
+<meta property="article:tag" content="编码器">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/images/ViT.png">
+
+
+<link rel="canonical" href="http://example.com/2025/07/11/%E5%A4%9A%E6%A8%A1%E6%80%81/ViT/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"http://example.com/2025/07/11/%E5%A4%9A%E6%A8%A1%E6%80%81/ViT/","path":"2025/07/11/多模态/ViT/","title":"ViT论文理解"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>ViT论文理解 | Eagle_Sun的拓荒地</title>
+  
+
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Eagle_Sun的拓荒地</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">每一次迷航，都是新大陆的序章</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="搜索" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8A%A8%E6%9C%BA"><span class="nav-number">1.</span> <span class="nav-text">动机</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%92%8C%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">模型结构和数据处理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E6%88%90%E5%8A%9F%E8%A6%81%E7%B4%A0"><span class="nav-number">3.</span> <span class="nav-text">关键成功要素</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Eagle_Sun"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">Eagle_Sun</p>
+  <div class="site-description" itemprop="description">这里会记录我在深度学习、LLM、多模态、AIGC、强化学习等领域探索与成长的足迹。迷航不止，拓荒不停。</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2025/07/11/%E5%A4%9A%E6%A8%A1%E6%80%81/ViT/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="Eagle_Sun">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Eagle_Sun的拓荒地">
+      <meta itemprop="description" content="这里会记录我在深度学习、LLM、多模态、AIGC、强化学习等领域探索与成长的足迹。迷航不止，拓荒不停。">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="ViT论文理解 | Eagle_Sun的拓荒地">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          ViT论文理解
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+      
+
+      <time title="创建时间：2025-07-11 10:51:20 / 修改时间：14:39:29" itemprop="dateCreated datePublished" datetime="2025-07-11T10:51:20+08:00">2025-07-11</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E5%A4%9A%E6%A8%A1%E6%80%81/" itemprop="url" rel="index"><span itemprop="name">多模态</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="动机"><a href="#动机" class="headerlink" title="动机"></a>动机</h2><p>Transformer 结构很好，想用在 CV 中</p>
+<h2 id="模型结构和数据处理"><a href="#模型结构和数据处理" class="headerlink" title="模型结构和数据处理"></a>模型结构和数据处理</h2><p><img src="/images/ViT.png" alt="ViT模型结构"></p>
+<p>a. 图像分块与嵌入 (Image Patching &amp; Embedding)</p>
+<span id="more"></span>
+<ul>
+<li>分块 (Patching): 将一张标准尺寸的输入图片（如 224x224 像素）分割成一系列不重叠的小图像块（Patches），例如 16x16 像素。一张 224x224 的图片因此被分为 (224/16) <em> (224/16) = 14 </em> 14 = 196 个图像块。</li>
+<li>展平与投射 (Flatten &amp; Linear Projection): 将每个 16x16x3 (HxWxChannels) 的图像块展平为一个一维向量（长度为 768）。接着，通过一个可学习的线性投射层（Linear Projection Layer）将其映射到模型的核心维度 D（例如 768）。这一步等效于 NLP 中的词嵌入（Word Embedding），将每个“图像单词”转换为模型能理解的向量</li>
+</ul>
+<p>b. 序列化输入 (Sequence Input)</p>
+<ul>
+<li>CLS Token: 在 196 个图像块向量序列的最前面，加入一个特殊的可学习向量 [CLS] Token。这个 Token 的设计借鉴自 BERT，其目的是在模型最后作为一个“信息汇总节点”，用于代表整个图像的全局信息。序列长度变为 196 + 1 = 197。</li>
+<li>位置编码 (Positional Encoding): 由于 Transformer 本身不感知序列的顺序，必须为序列中的每一个向量（包括 [CLS] Token）添加一个可学习的位置编码向量。这使得模型能够理解每个图像块在原始图片中的空间位置（如左上角、中心等）。</li>
+</ul>
+<p>c. Transformer 编码器 (Transformer Encoder)</p>
+<ul>
+<li>将添加了位置编码的完整序列（维度为 197xD）送入一个标准的 Transformer 编码器。</li>
+<li>编码器由多个堆叠的 Block 组成，每个 Block 内部主要包含多头自注意力机制 (Multi-Head Self-Attention) 和 前馈网络 (Feed-Forward Network, or MLP)。</li>
+<li>在自注意力层，序列中的每个图像块向量都会与其他所有图像块向量（包括 CLS Token）进行交互，计算彼此的关联度，从而捕捉图像的全局依赖关系。</li>
+</ul>
+<p>d. 分类输出 (Classification Output)</p>
+<ul>
+<li>当序列数据流经所有 Transformer Block 后，取出最终输出序列中第一个位置，即 [CLS] Token 所对应的输出向量。</li>
+<li>这个向量被认为是整张图片的全局特征表征 (Global Representation)。</li>
+<li>最后，将这个特征向量送入一个简单的多层感知机（MLP Head），并通过 Softmax 函数输出最终的分类概率。</li>
+</ul>
+<h2 id="关键成功要素"><a href="#关键成功要素" class="headerlink" title="关键成功要素"></a>关键成功要素</h2><p>a. 预训练-微调范式 (Pre-training/Fine-tuning Paradigm)</p>
+<ul>
+<li>ViT 的成功高度依赖于此范式。它必须首先在极大规模的图像数据集（如 ImageNet-21k, JFT-300M）上进行预训练，以学习通用的视觉模式。之后，才能在具体的小规模下游任务（如猫狗分类）上进行微调，并取得优异表现。</li>
+</ul>
+<p>b. 归纳偏置的变革 (A Shift in Inductive Bias)</p>
+<ul>
+<li>CNN 具有很强的归纳偏置：它通过卷积核的设计，天然地假设了图像信息具有局部性和平移不变性。这使其在小数据集上也能高效学习。</li>
+<li>ViT 则几乎没有这种先验假设，它将所有图像块一视同仁，完全依靠自注意力机制从海量数据中学习关联性。这使其数据需求量巨大，但在数据足够时，它的学习能力上限可能更高，模型泛化性更强。</li>
+</ul>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>ViT 将 transformer 结构引入到了 CV 中，证明了在训练数据足够大的时候，transformer 结构效果比 CNN 好</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E7%BC%96%E7%A0%81%E5%99%A8/" rel="tag"># 编码器</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2025/07/10/RL/overview/" rel="prev" title="overview">
+                  <i class="fa fa-angle-left"></i> overview
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2025/07/11/%E5%A4%9A%E6%A8%A1%E6%80%81/CLIP/" rel="next" title="CLIP论文理解">
+                  CLIP论文理解 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Eagle_Sun</span>
+  </div>
+
+<!--
+  <div class="powered-by">由 <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+-->
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+</body>
+</html>
